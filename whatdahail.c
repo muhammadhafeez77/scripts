@@ -72,9 +72,9 @@ static int exists(const char *path)
   struct stat st;
   return lstat(path, &st) == 0; // lstat: a dangling symlink still "exists"
 }
-
-// Rename path -> path.bak.<timestamp> if it exists. Safe to re-run.
-static void backup(const char *path)
+e
+    // Rename path -> path.bak.<timestamp> if it exists. Safe to re-run.
+    static void backup(const char *path)
 {
   if (!exists(path))
     return;
@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 
   clone(GH "Picom", "picom", 0);
   clone(GH "Oxwm", "oxwm", 0);
-  clone(GH "terminals", "terminals", 0);
+  clone(GH "terminals", "alacritty", 0);
   clone(GH "Tmux", "tmux", 0);
 
   // ---- shell -----------------------------------------------------------
