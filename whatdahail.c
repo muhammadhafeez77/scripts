@@ -72,9 +72,9 @@ static int exists(const char *path)
   struct stat st;
   return lstat(path, &st) == 0; // lstat: a dangling symlink still "exists"
 }
-e
-    // Rename path -> path.bak.<timestamp> if it exists. Safe to re-run.
-    static void backup(const char *path)
+
+// Rename path -> path.bak.<timestamp> if it exists. Safe to re-run.
+static void backup(const char *path)
 {
   if (!exists(path))
     return;
@@ -109,27 +109,41 @@ static int confirm(const char *question)
 }
 
 // ------------------------------------------------------------------- main
-
 int main(int argc, char *argv[])
 {
   if (argc < 2 || strcmp(argv[1], "--execute") != 0)
   {
-    fprintf(stderr, RED "usage: sudo %s --execute\nrequires: git\n" RESET,
+    fprintf(stderr,
+            RED "usage: sudo %s --execute [username]\nrequires: git\n" RESET,
             argv[0]);
     return EXIT_FAILURE;
   }
 
   if (geteuid() != 0)
-    die("must be run as root (use sudo)");
+    die("must be run as root (use sudo, or a root shell)");
 
-  // Work out the real user instead of hardcoding "coffee".
-  const char *sudo_user = getenv("SUDO_USER");
-  if (!sudo_user || !*sudo_user || strcmp(sudo_user, "root") == 0)
-    die("run via sudo from your normal user (SUDO_USER not set)");
+  // Which user are we setting up? Priority:
+  //   1. explicit argument:  ./setup --execute coffee   (works from a root
+  //   shell)
+  //   2. SUDO_USER:          sudo ./setup --execute     (set automatically by
+  //   sudo)
+  const char *target = NULL;
+  if (argc >= 3 && *argv[2])
+    target = argv[2];
+  else if (getenv("SUDO_USER") && *getenv("SUDO_USER"))
+    target = getenv("SUDO_USER");
 
-  struct passwd *pw = getpwnam(sudo_user);
+  if (!target)
+    die("can't tell which user to set up (you're probably in a root shell).\n"
+        "  pass it explicitly:  %s --execute <username>",
+        argv[0]);
+  if (strcmp(target, "root") == 0)
+    die("target must be a normal user, not root "
+        "(root's files are handled automatically)");
+
+  struct passwd *pw = getpwnam(target);
   if (!pw)
-    die("no such user: %s", sudo_user);
+    die("no such user: %s", target);
 
   snprintf(user, sizeof user, "%s", pw->pw_name);
   snprintf(home, sizeof home, "%s", pw->pw_dir);
@@ -140,7 +154,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, RED "aborted.\n" RESET);
     return EXIT_FAILURE;
   }
-
   printf(GREEN "\n==== Begin ====\n" RESET);
 
   cd(home);

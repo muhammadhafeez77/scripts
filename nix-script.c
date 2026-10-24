@@ -1,59 +1,58 @@
 // LAST :: PROGRESS BAR
-//  include themes.git in this script
+// command -v git >/dev/null 2>&1 && echo 1 || echo 0 // check if git is or not
 
+#include <linux/limits.h>
+#include <pwd.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 #include <unistd.h>
 
 #define RED "\x1b[31m"
 #define GREEN "\x1b[32m"
 #define YELLOW "\x1b[33m"
 #define RESET "\x1b[0m"
+#define GH "git clone --depth 1 https://github.com/muhammadhafeez77/"
 
 // 77//================== Declerations ===================
 
 // change "coffee" to your username , must be same here and configuration.nix
 // or any other config that has that username.
-char PATH[] = "/home/coffee";
-char END[] = "sudo chown -R coffee:coffee /home/coffee";
+static char USER[255];
+static char PATH[PATH_MAX];
 
-char command[500];
-void cd(char path[]);
-void killgit();
+char command[4095];
+void cd(const char *local_path);
+void clone(const char *url, const char *dest, const int readme);
+static int exists(const char *local_path);
+static void die(const char *core);
+static void run(const char *core, ...) __attribute__((format(printf, 1, 2)));
+static void run(const char *core, ...);
+static void backup(const char *core);
+static void auth();
+// 77//================= Main ============================
 
 int main(int argc, char *argv[])
 {
 
-  (void)argc;
-  if (argv[1] == NULL)
-  {
-    argv[1] = argv[0];
-  }
   // 77// ================= Last Stand =====================
 
-  if (strcmp(argv[1], "--execute") != 0)
+  if (argc < 2 || strcmp(argv[1], "--execute") != 0)
   {
-    fprintf(stderr, RED "\n usage :  %s  [--execute] to execute  ", argv[0]);
+    printf(RED "\n usage :  %s  [--execute] <username> to execute  ", argv[0]);
     fprintf(stderr, "\n usage : Run as [ root ]  ");
     fprintf(stderr, "\n must have : git  \n\n" RESET);
-    exit(0);
+    die("add --execute as flag");
   }
-
-  printf("Are you sure you want to continue:[y,n]  : ");
-
-  if (scanf("%c", command) == 1 && (command[0] != 'y' && command[0] != 'Y'))
-  {
-    fprintf(stderr, RED "\n i hate you res  \n\n");
-    fprintf(stderr, "\n\n\t ==== Ending Execution =====\n  " RESET);
-    exit(0);
-  }
+  auth();
 
   // 77// ================= Execution  =====================
   //
   printf(GREEN "\n\n\t ==== Begin Execution =====\n  " RESET);
-  fprintf(stderr, RED "\n\n i hate you res  \n" RESET);
+  printf(RED "\n\n i hate you res  \n" RESET);
 
   cd(PATH);
   system("mkdir -p /root/.config");
@@ -63,9 +62,8 @@ int main(int argc, char *argv[])
            " git clone https://github.com/muhammadhafeez77/Nixos-Flakes.git"
            "./nixos-dotfiles ");
   system(command);
-
+  clone(GH "themes", "themes", 0);
   cd("nixos-dotfiles");
-  killgit();
   system(
       "cp /etc/nixos/hardware-configuration.nix ./hardware-configuration.nix");
   system(" mv /etc/nixos/ /etc/backup_nixos ");
@@ -81,14 +79,12 @@ int main(int argc, char *argv[])
 
   system("git clone https://github.com/muhammadhafeez77/walls ./Pictures");
   cd("Pictures");
-  killgit();
   cd("..");
 
   cd(".config");
 
   system("git clone https://github.com/muhammadhafeez77/Themes ./themes");
   cd("themes");
-  killgit();
   system("mv gtk-3.0 Mousepad Thunar xfce4 ../");
   system("mv fonts /usr/share/fonts");
   system("mv themes /usr/share/themes");
@@ -98,7 +94,6 @@ int main(int argc, char *argv[])
 
   system("git clone https://github.com/muhammadhafeez77/Qtile ./qtile");
   cd("qtile");
-  killgit();
   cd("..");
 
   system("git clone https://github.com/muhammadhafeez77/Neovim ./nvim");
@@ -107,28 +102,23 @@ int main(int argc, char *argv[])
   system("mv clang-format ../../.clang-format");
   system("mv vimrc ../../.vimrc");
   system("mv README.md CONFIG.md");
-  killgit();
   system("mv CONFIG.md README.md");
   cd("..");
 
   system("git clone https://github.com/muhammadhafeez77/Picom ./picom");
   cd("picom");
-  killgit();
   cd("..");
 
   system("git clone https://github.com/muhammadhafeez77/Oxwm ./oxwm");
   cd("oxwm");
-  killgit();
   cd("..");
 
   system("git clone https://github.com/muhammadhafeez77/terminals ./alacritty");
   cd("alacritty");
-  killgit();
   cd("..");
 
   system("git clone https://github.com/muhammadhafeez77/Tmux ./tmux");
   cd("tmux");
-  killgit();
 
   cd(PATH);
   system("mv .bashrc ._backup__bashrc");
@@ -138,7 +128,6 @@ int main(int argc, char *argv[])
   cd("Documents");
   system("git clone https://github.com/muhammadhafeez77/Zshrc ./zsh");
   cd("zsh");
-  killgit();
 
   system("mv dircolors /usr/bin/");
   system("mv bash-completion zsh-autosuggestions zsh-syntax-highlighting "
@@ -157,24 +146,92 @@ int main(int argc, char *argv[])
   cd(".config/nvim");
   system("mv clang-format ../../.clang-format");
   system("mv vimrc ../../.vimrc");
-  killgit();
 
-  system(END);
+  system("do chown");
   printf(GREEN "\n\n\t ==== Finished =====\n  " RESET);
   return EXIT_SUCCESS;
 }
 
-void cd(char local_path[])
+// 77// ==================== Functions ==========================
+
+static void auth()
 {
-  // local_path[strcspn(local_path, "\n")] == '\0';
-  if (strlen(local_path) > 1)
+  if (getuid() != 0)
   {
-    snprintf(command, sizeof(command), "cd %s", local_path);
-    system(command);
+    fprintf(stderr, "\n usage : Run as [ root ]  ");
+    die(" are u an idiot ? ");
+  }
+  memset(command, 0, sizeof(command));
+
+  printf("Are you sure you want to continue:[y,n]  : ");
+
+  if (scanf("%c", command) == 1 && (command[0] != 'y' && command[0] != 'Y'))
+  {
+    printf(RED "\n i hate you res  \n\n");
+    die(" Execution Cancelled");
   }
 }
-void killgit()
+static void backup(const char *core)
 {
-  system("rm -rf .git");
-  system("rm .gitignore README.md");
+  if (!exists(core))
+    return;
+
+  memset(command, 0, sizeof(command));
+  snprintf(command, sizeof(command), "%s.bak.%ld ", core, (long)time(NULL));
+  printf(YELLOW " + backup %s -> %s " RESET, core, command);
+
+  if (rename(core, command))
+  {
+    perror(core);
+    die(" renaming failed");
+  }
+}
+
+void clone(const char *url, const char *dest, const int readme) // 0 = delete it
+{
+  run(" '%s'  '%s' ", url, dest);
+  run("rm -rf '%s/.git' '%s.gitignore ", dest, dest);
+  if (!readme)
+  {
+    run("rm README.md");
+  }
+}
+
+static void run(const char *core, ...)
+{
+  memset(command, 0, sizeof(command));
+
+  va_list temp;
+  va_start(temp, core);
+  int n = vsnprintf(command, sizeof(command), core, temp);
+  va_end(temp);
+
+  if (n < 0 || (size_t)n >= sizeof(command))
+    die("Buffer overflow ");
+
+  int check = system(command);
+  if (check != 0)
+    die(command);
+}
+
+static void die(const char *core)
+{
+  fprintf(stderr, RED "\n\n ERROR : { %s } \n\n", core);
+  printf("\n\n\t ==== Ending Execution =====\n  " RESET);
+  exit(EXIT_FAILURE);
+}
+
+static int exists(const char *local_path)
+{
+  struct stat st;
+  return lstat(local_path, &st) == 0;
+}
+
+void cd(const char *local_path)
+{
+  if (chdir(local_path) != 0)
+  {
+    perror(local_path);
+    exit(EXIT_FAILURE);
+  }
 }
