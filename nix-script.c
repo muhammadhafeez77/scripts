@@ -19,8 +19,6 @@
 
 // 77//================== Declerations ===================
 
-// change "coffee" to your username , must be same here and configuration.nix
-// or any other config that has that username.
 static char USER[255];
 static char PATH[PATH_MAX];
 
@@ -58,11 +56,7 @@ int main(int argc, char *argv[])
   system("mkdir -p /root/.config");
   mkdir("Downloads", 0755);
   mkdir("Documents", 0755);
-  snprintf(command, sizeof(command),
-           " git clone https://github.com/muhammadhafeez77/Nixos-Flakes.git"
-           "./nixos-dotfiles ");
-  system(command);
-  clone(GH "themes", "themes", 0);
+  clone(GH "nixos-flakes", "nixos-dotfiles", 0);
   cd("nixos-dotfiles");
   system(
       "cp /etc/nixos/hardware-configuration.nix ./hardware-configuration.nix");
@@ -83,6 +77,7 @@ int main(int argc, char *argv[])
 
   cd(".config");
 
+  clone(GH "themes", "themes", 0);
   system("git clone https://github.com/muhammadhafeez77/Themes ./themes");
   cd("themes");
   system("mv gtk-3.0 Mousepad Thunar xfce4 ../");
@@ -189,7 +184,7 @@ static void backup(const char *core)
 
 void clone(const char *url, const char *dest, const int readme) // 0 = delete it
 {
-  run(" '%s'  '%s' ", url, dest);
+  run(" '%s'  './%s' ", url, dest);
   run("rm -rf '%s/.git' '%s.gitignore ", dest, dest);
   if (!readme)
   {
